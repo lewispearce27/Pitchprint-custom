@@ -106,50 +106,100 @@ class PitchPrint_API {
     }
     
     /**
-     * Get design categories
-     * Since PitchPrint doesn't have a categories endpoint, we'll discover them
+     * Get design categories - UPDATED with correct endpoint
      */
     public function get_categories() {
-        // Check if we have cached categories
-        $cached_categories = get_transient('pitchprint_categories_' . $this->api_key);
+        // Use the correct endpoint from your previous version
+        $result = $this->make_request('fetch-design-categories', array());
         
-        if ($cached_categories !== false && !empty($cached_categories)) {
+        if ($result['success'] && isset($result['data']['data'])) {
             return array(
                 'success' => true,
-                'data' => array('items' => $cached_categories)
+                'data' => $result['data']['data']
             );
         }
         
-        // Common category ID patterns to test
-        $test_patterns = array(
-            // Single letters
-            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 
-            'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-            // Numbers
-            '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
-            // Common patterns
-            'cat1', 'cat2', 'cat3', 'cat4', 'cat5',
-            'category1', 'category2', 'category3',
-            'default', 'main', 'general'
+        return $result;
+    }
+    
+    /**
+     * Get designs by category
+     */
+    public function get_designs($category_id) {
+        return $this->make_request('fetch-designs', array('categoryId' => $category_id));
+    }
+    
+    /**
+     * Get project details
+     */
+    public function get_project($project_id) {
+        return $this->make_request('fetch-project', array('projectId' => $project_id));
+    }
+    
+    /**
+     * Render PDF
+     */
+    public function render_pdf($project_id) {
+        return $this->make_request('render-pdf', array('projectId' => $project_id));
+    }
+    
+    /**
+     * Fetch raster images
+     */
+    public function fetch_raster($project_id) {
+        $auth = $this->generate_signature();
+        $data = array_merge(array('projectId' => $project_id), $auth);
+        
+        $args = array(
+            'method' => 'POST',
+            'timeout' => 60,
+            'body' => $data
         );
         
-        $found_categories = array();
+        $response = wp_remote_post('https://pitchprint.net/api/runtime/fetch-raster', $args);
         
-        foreach ($test_patterns as $pattern) {
-            $result = $this->get_designs($pattern);
-            
-            if ($result['success'] && isset($result['data']['data']['items']) && !empty($result['data']['data']['items'])) {
-                // Extract category info from the response
-                $category_name = $pattern; // Default to ID
-                
-                // Try to get category name from the response
-                if (isset($result['data']['data']['categoryTitle'])) {
-                    $category_name = $result['data']['data']['categoryTitle'];
-                } elseif (isset($result['data']['data']['category'])) {
-                    $category_name = $result['data']['data']['category'];
-                } elseif (!empty($result['data']['data']['items'])) {
-                    // Try to infer from first design
-                    $first_design = $result['data']['data']['items'][0];
-                    if (isset($first_design['category'])) {
-                        $category_name = $first_design['category'];
-                    }
+        if (is_wp_error($response)) {
+            return array(
+                'success' => false,
+                'message' => $response->get_error_message()
+            );
+        }
+        
+        // This endpoint returns a zip file
+        $headers = wp_remote_retrieve_headers($response);
+        $content_type = wp_remote_retrieve_header($response, 'content-type');
+        
+        if ($content_type === 'application/zip') {
+            return array(
+                'success' => true,
+                'data' => wp_remote_retrieve_body($response),
+                'is_binary' => true
+            );
+        }
+        
+        return array(
+            'success' => false,
+            'message' => __('Failed to fetch raster images', 'pitchprint-integration')
+        );
+    }
+    
+    /**
+     * Clone project
+     */
+    public function clone_project($project_id) {
+        return $this->make_request('clone-project', array('projectId' => $project_id));
+    }
+    
+    /**
+     * Create blank project
+     */
+    public function create_blank_project($width, $height, $unit = 'in') {
+        $data = array(
+            'width' => $width,
+            'height' => $height,
+            'unit' => $unit
+        );
+        
+        return $this->make_request('create-project', $data);
+    }
+}
