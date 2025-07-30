@@ -145,3 +145,248 @@ class PitchPrint_Product {
                             <p>
                                 <?php 
                                 printf(
+                                    __('PitchPrint API credentials not configured. Please <a href="%s">configure them here</a>.', 'pitchprint-integration'),
+                                    admin_url('admin.php?page=pitchprint-settings')
+                                );
+                                ?>
+                            </p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            
+            <div class="options_group">
+                <p class="form-field">
+                    <label><?php _e('Instructions', 'pitchprint-integration'); ?></label>
+                    <span class="description" style="display: block; margin-left: 0;">
+                        <strong><?php _e('Design Online:', 'pitchprint-integration'); ?></strong> 
+                        <?php _e('Opens PitchPrint designer with the selected template', 'pitchprint-integration'); ?><br>
+                        <strong><?php _e('Upload Artwork:', 'pitchprint-integration'); ?></strong> 
+                        <?php _e('Shows upload form, then opens PitchPrint with the uploaded file', 'pitchprint-integration'); ?>
+                    </span>
+                </p>
+            </div>
+        </div>
+        
+        <script type="text/javascript">
+            jQuery(document).ready(function($) {
+                var savedCategoryId = '<?php echo esc_js($category_id); ?>';
+                var savedDesignId = '<?php echo esc_js($design_id); ?>';
+                
+                // Debug logging
+                console.log('Saved category:', savedCategoryId);
+                console.log('Saved design:', savedDesignId);
+                
+                // Show/hide fields based on button type
+                function togglePitchPrintFields() {
+                    var buttonType = $('#pitchprint_button_type').val();
+                    
+                    if (buttonType === 'none') {
+                        $('.pitchprint-category-field, .pitchprint-design-field').hide();
+                    } else if (buttonType === 'upload_artwork') {
+                        $('.pitchprint-category-field, .pitchprint-design-field').hide();
+                    } else {
+                        $('.pitchprint-category-field, .pitchprint-design-field').show();
+                    }
+                }
+                
+                // Load categories on page load
+                function loadCategories() {
+                    var $categorySelect = $('#pitchprint_category_id');
+                    
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'pitchprint_fetch_categories',
+                            nonce: '<?php echo wp_create_nonce('pitchprint_admin_nonce'); ?>'
+                        },
+                        success: function(response) {
+                            $categorySelect.empty().append('<option value=""><?php _e('Select a category...', 'pitchprint-integration'); ?></option>');
+                            
+                            if (response.success && response.data) {
+                                // Handle both array and object responses
+                                var categories = response.data;
+                                if (Array.isArray(categories)) {
+                                    $.each(categories, function(index, category) {
+                                        var selected = (category.id === savedCategoryId) ? ' selected' : '';
+                                        $categorySelect.append(
+                                            '<option value="' + category.id + '"' + selected + '>' + 
+                                            category.title + 
+                                            '</option>'
+                                        );
+                                    });
+                                } else if (typeof categories === 'object') {
+                                    $.each(categories, function(id, title) {
+                                        var selected = (id === savedCategoryId) ? ' selected' : '';
+                                        $categorySelect.append(
+                                            '<option value="' + id + '"' + selected + '>' + 
+                                            title + 
+                                            '</option>'
+                                        );
+                                    });
+                                }
+                                
+                                // If we have a saved category, trigger change to load designs
+                                if (savedCategoryId) {
+                                    $categorySelect.val(savedCategoryId);
+                                    $categorySelect.trigger('change');
+                                }
+                            } else {
+                                $categorySelect.append('<option value=""><?php _e('No categories found', 'pitchprint-integration'); ?></option>');
+                            }
+                        },
+                        error: function() {
+                            $categorySelect.empty().append('<option value=""><?php _e('Error loading categories', 'pitchprint-integration'); ?></option>');
+                        }
+                    });
+                }
+                
+                // Load designs when category changes
+                $('#pitchprint_category_id').on('change', function() {
+                    var categoryId = $(this).val();
+                    var $designSelect = $('#pitchprint_design_id');
+                    
+                    console.log('Category changed to:', categoryId);
+                    
+                    if (!categoryId) {
+                        $designSelect.empty().append('<option value=""><?php _e('Select a design...', 'pitchprint-integration'); ?></option>');
+                        return;
+                    }
+                    
+                    $designSelect.empty().append('<option value=""><?php _e('Loading designs...', 'pitchprint-integration'); ?></option>');
+                    
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'pitchprint_fetch_designs',
+                            category_id: categoryId,
+                            nonce: '<?php echo wp_create_nonce('pitchprint_admin_nonce'); ?>'
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                $designSelect.empty().append('<option value=""><?php _e('Select a design...', 'pitchprint-integration'); ?></option>');
+                                
+                                if (response.data && response.data.data && response.data.data.items) {
+                                    $.each(response.data.data.items, function(index, design) {
+                                        var selected = (design.designId === savedDesignId) ? ' selected' : '';
+                                        $designSelect.append(
+                                            '<option value="' + design.designId + '"' + selected + '>' + 
+                                            (design.title || design.designId) + 
+                                            '</option>'
+                                        );
+                                    });
+                                    
+                                    // Set the saved design if it exists
+                                    if (savedDesignId) {
+                                        $designSelect.val(savedDesignId);
+                                    }
+                                    
+                                    if (response.data.data.items.length === 0) {
+                                        $designSelect.append('<option value=""><?php _e('No designs found in this category', 'pitchprint-integration'); ?></option>');
+                                    }
+                                } else {
+                                    $designSelect.append('<option value=""><?php _e('No designs found', 'pitchprint-integration'); ?></option>');
+                                }
+                            } else {
+                                alert(response.data.message || '<?php _e('Error loading designs', 'pitchprint-integration'); ?>');
+                                $designSelect.empty().append('<option value=""><?php _e('Error loading designs', 'pitchprint-integration'); ?></option>');
+                            }
+                        },
+                        error: function() {
+                            alert('<?php _e('Error loading designs', 'pitchprint-integration'); ?>');
+                            $designSelect.empty().append('<option value=""><?php _e('Error loading designs', 'pitchprint-integration'); ?></option>');
+                        }
+                    });
+                });
+                
+                // Initial setup
+                togglePitchPrintFields();
+                loadCategories();
+                
+                // Toggle on button type change
+                $('#pitchprint_button_type').on('change', togglePitchPrintFields);
+            });
+        </script>
+        <?php
+    }
+    
+    /**
+     * Save product data
+     */
+    public function save_product_data($post_id) {
+        // Save button type
+        if (isset($_POST['_pitchprint_button_type'])) {
+            update_post_meta($post_id, '_pitchprint_button_type', sanitize_text_field($_POST['_pitchprint_button_type']));
+        }
+        
+        // Save category ID
+        if (isset($_POST['_pitchprint_category_id'])) {
+            update_post_meta($post_id, '_pitchprint_category_id', sanitize_text_field($_POST['_pitchprint_category_id']));
+        }
+        
+        // Save design ID
+        if (isset($_POST['_pitchprint_design_id'])) {
+            update_post_meta($post_id, '_pitchprint_design_id', sanitize_text_field($_POST['_pitchprint_design_id']));
+        }
+    }
+    
+    /**
+     * Add cart item data
+     */
+    public function add_cart_item_data($cart_item_data, $product_id) {
+        if (isset($_POST['pitchprint_project_id'])) {
+            $cart_item_data['pitchprint_project_id'] = sanitize_text_field($_POST['pitchprint_project_id']);
+        }
+        
+        if (isset($_POST['pitchprint_project_data'])) {
+            $cart_item_data['pitchprint_project_data'] = $_POST['pitchprint_project_data'];
+        }
+        
+        return $cart_item_data;
+    }
+    
+    /**
+     * Display cart item data
+     */
+    public function display_cart_item_data($item_data, $cart_item) {
+        if (isset($cart_item['pitchprint_project_id'])) {
+            $item_data[] = array(
+                'key' => __('Design', 'pitchprint-integration'),
+                'value' => __('Custom Design Added', 'pitchprint-integration')
+            );
+        }
+        
+        return $item_data;
+    }
+    
+    /**
+     * Save order item meta
+     */
+    public function save_order_item_meta($item, $cart_item_key, $values, $order) {
+        if (isset($values['pitchprint_project_id'])) {
+            $item->add_meta_data('_pitchprint_project_id', $values['pitchprint_project_id']);
+        }
+        
+        if (isset($values['pitchprint_project_data'])) {
+            $item->add_meta_data('_pitchprint_project_data', $values['pitchprint_project_data']);
+            
+            // Save to custom table for easy retrieval
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'pitchprint_projects';
+            
+            $wpdb->insert(
+                $table_name,
+                array(
+                    'order_id' => $order->get_id(),
+                    'product_id' => $item->get_product_id(),
+                    'project_id' => $values['pitchprint_project_id'],
+                    'project_data' => maybe_serialize($values['pitchprint_project_data']),
+                    'created_at' => current_time('mysql')
+                ),
+                array('%d', '%d', '%s', '%s', '%s')
+            );
+        }
+    }
+}
