@@ -107,148 +107,49 @@ class PitchPrint_API {
     
     /**
      * Get design categories
-     * Since PitchPrint doesn't have a direct categories endpoint,
-     * we'll fetch from the admin panel webpage
+     * Since PitchPrint doesn't have a categories endpoint, we'll discover them
      */
     public function get_categories() {
-        $auth = $this->generate_signature();
-        
-        // First try the API endpoint
-        $api_url = str_replace('/runtime/', '/admin/', $this->api_base_url) . 'fetch-categories';
-        
-        $response = $this->make_request('fetch-categories', array());
-        
-        if ($response['success'] && isset($response['data']['data'])) {
-            return $response;
-        }
-        
-        // Alternative: Try to get categories from designs endpoint
-        // This is a workaround - you may need to manually create categories list
+        // Check if we have cached categories
         $cached_categories = get_transient('pitchprint_categories_' . $this->api_key);
         
-        if ($cached_categories !== false) {
+        if ($cached_categories !== false && !empty($cached_categories)) {
             return array(
                 'success' => true,
-                'data' => $cached_categories
+                'data' => array('items' => $cached_categories)
             );
         }
         
-        // If no cached categories, return empty with instructions
-        return array(
-            'success' => true,
-            'data' => array(
-                'items' => array(),
-                'message' => 'Categories need to be fetched manually from PitchPrint admin'
-            )
+        // Common category ID patterns to test
+        $test_patterns = array(
+            // Single letters
+            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 
+            'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+            // Numbers
+            '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+            // Common patterns
+            'cat1', 'cat2', 'cat3', 'cat4', 'cat5',
+            'category1', 'category2', 'category3',
+            'default', 'main', 'general'
         );
-    }
-    
-    /**
-     * Get designs by category
-     */
-    public function get_designs($category_id) {
-        $result = $this->make_request('fetch-designs', array('categoryId' => $category_id));
         
-        // Cache the category if we get successful results
-        if ($result['success'] && isset($result['data']['data']['items']) && !empty($result['data']['data']['items'])) {
-            // Extract category info from the response if available
-            $categories = get_transient('pitchprint_categories_' . $this->api_key);
-            if (!is_array($categories)) {
-                $categories = array('items' => array());
-            }
+        $found_categories = array();
+        
+        foreach ($test_patterns as $pattern) {
+            $result = $this->get_designs($pattern);
             
-            // Add this category to our known categories
-            $category_exists = false;
-            foreach ($categories['items'] as $cat) {
-                if ($cat['id'] === $category_id) {
-                    $category_exists = true;
-                    break;
-                }
-            }
-            
-            if (!$category_exists && isset($result['data']['data']['categoryTitle'])) {
-                $categories['items'][] = array(
-                    'id' => $category_id,
-                    'title' => $result['data']['data']['categoryTitle']
-                );
-                set_transient('pitchprint_categories_' . $this->api_key, $categories, DAY_IN_SECONDS);
-            }
-        }
-        
-        return $result;
-    }
-    
-    /**
-     * Get project details
-     */
-    public function get_project($project_id) {
-        return $this->make_request('fetch-project', array('projectId' => $project_id));
-    }
-    
-    /**
-     * Render PDF
-     */
-    public function render_pdf($project_id) {
-        return $this->make_request('render-pdf', array('projectId' => $project_id));
-    }
-    
-    /**
-     * Fetch raster images
-     */
-    public function fetch_raster($project_id) {
-        $auth = $this->generate_signature();
-        $data = array_merge(array('projectId' => $project_id), $auth);
-        
-        $args = array(
-            'method' => 'POST',
-            'timeout' => 60,
-            'body' => $data
-        );
-        
-        $response = wp_remote_post('https://pitchprint.net/api/runtime/fetch-raster', $args);
-        
-        if (is_wp_error($response)) {
-            return array(
-                'success' => false,
-                'message' => $response->get_error_message()
-            );
-        }
-        
-        // This endpoint returns a zip file
-        $headers = wp_remote_retrieve_headers($response);
-        $content_type = wp_remote_retrieve_header($response, 'content-type');
-        
-        if ($content_type === 'application/zip') {
-            return array(
-                'success' => true,
-                'data' => wp_remote_retrieve_body($response),
-                'is_binary' => true
-            );
-        }
-        
-        return array(
-            'success' => false,
-            'message' => __('Failed to fetch raster images', 'pitchprint-integration')
-        );
-    }
-    
-    /**
-     * Clone project
-     */
-    public function clone_project($project_id) {
-        return $this->make_request('clone-project', array('projectId' => $project_id));
-    }
-    
-    /**
-     * Create blank project
-     */
-    public function create_blank_project($width, $height, $unit = 'in') {
-        $data = array(
-            'width' => $width,
-            'height' => $height,
-            'unit' => $unit
-        );
-        
-        return $this->make_request('create-project', $data);
-    }
-}
+            if ($result['success'] && isset($result['data']['data']['items']) && !empty($result['data']['data']['items'])) {
+                // Extract category info from the response
+                $category_name = $pattern; // Default to ID
+                
+                // Try to get category name from the response
+                if (isset($result['data']['data']['categoryTitle'])) {
+                    $category_name = $result['data']['data']['categoryTitle'];
+                } elseif (isset($result['data']['data']['category'])) {
+                    $category_name = $result['data']['data']['category'];
+                } elseif (!empty($result['data']['data']['items'])) {
+                    // Try to infer from first design
+                    $first_design = $result['data']['data']['items'][0];
+                    if (isset($first_design['category'])) {
+                        $category_name = $first_design['category'];
+                    }
