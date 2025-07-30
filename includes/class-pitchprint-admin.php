@@ -186,7 +186,7 @@ class PitchPrint_Admin {
     }
     
     /**
-     * Fetch categories AJAX handler
+     * Fetch categories AJAX handler - UPDATED to use the API
      */
     public function fetch_categories() {
         // Verify nonce
@@ -203,18 +203,16 @@ class PitchPrint_Admin {
             ));
         }
         
-        // For now, we'll build categories from successful design fetches
-        // Store known categories in transient
-        $known_categories = get_transient('pitchprint_known_categories');
+        $api = new PitchPrint_API($api_key, $secret_key);
+        $result = $api->get_categories();
         
-        if ($known_categories === false) {
-            $known_categories = array();
+        if ($result['success']) {
+            wp_send_json_success($result['data']);
+        } else {
+            wp_send_json_error(array(
+                'message' => $result['message']
+            ));
         }
-        
-        // Return known categories
-        wp_send_json_success(array(
-            'items' => $known_categories
-        ));
     }
     
     /**
@@ -247,38 +245,6 @@ class PitchPrint_Admin {
         $result = $api->get_designs($category_id);
         
         if ($result['success']) {
-            // Store this category as known if we get results
-            if (isset($result['data']['data']['items']) && !empty($result['data']['data']['items'])) {
-                $known_categories = get_transient('pitchprint_known_categories');
-                if (!is_array($known_categories)) {
-                    $known_categories = array();
-                }
-                
-                // Check if category already exists
-                $found = false;
-                foreach ($known_categories as $cat) {
-                    if ($cat['id'] === $category_id) {
-                        $found = true;
-                        break;
-                    }
-                }
-                
-                // Add category if not found
-                if (!$found) {
-                    $category_name = 'Category ' . $category_id;
-                    if (isset($result['data']['data']['categoryTitle'])) {
-                        $category_name = $result['data']['data']['categoryTitle'];
-                    }
-                    
-                    $known_categories[] = array(
-                        'id' => $category_id,
-                        'title' => $category_name
-                    );
-                    
-                    set_transient('pitchprint_known_categories', $known_categories, WEEK_IN_SECONDS);
-                }
-            }
-            
             wp_send_json_success($result['data']);
         } else {
             wp_send_json_error(array(
