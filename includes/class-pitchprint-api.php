@@ -91,7 +91,6 @@ class PitchPrint_API {
      */
     public function test_connection() {
         // Make a simple request to verify credentials
-        // Using fetch-designs endpoint with a dummy category as a test
         $result = $this->make_request('fetch-designs', array('categoryId' => 'test'));
         
         if ($result['success'] || (isset($result['data']['error']) && strpos($result['data']['message'], 'category') !== false)) {
@@ -106,16 +105,72 @@ class PitchPrint_API {
     }
     
     /**
-     * Get design categories - UPDATED with correct endpoint
+     * Get design categories - properly formatted
      */
     public function get_categories() {
-        // Use the correct endpoint from your previous version
+        // Try the main categories endpoint
         $result = $this->make_request('fetch-design-categories', array());
         
-        if ($result['success'] && isset($result['data']['data'])) {
+        if ($result['success']) {
+            $categories = array();
+            
+            // Handle different response formats from PitchPrint API
+            if (isset($result['data']['data'])) {
+                $data = $result['data']['data'];
+                
+                // If it's an object with categories
+                if (is_array($data)) {
+                    foreach ($data as $key => $value) {
+                        if (is_array($value) && isset($value['id'], $value['title'])) {
+                            // Format: [{id: 'xxx', title: 'Name'}, ...]
+                            $categories[] = array(
+                                'id' => $value['id'],
+                                'title' => $value['title']
+                            );
+                        } elseif (is_string($value)) {
+                            // Format: {id: 'title', id2: 'title2'}
+                            $categories[] = array(
+                                'id' => $key,
+                                'title' => $value
+                            );
+                        }
+                    }
+                }
+            } elseif (isset($result['data']) && is_array($result['data'])) {
+                // Direct array format
+                foreach ($result['data'] as $key => $value) {
+                    if (is_array($value) && isset($value['id'], $value['title'])) {
+                        $categories[] = $value;
+                    } elseif (is_string($value)) {
+                        $categories[] = array(
+                            'id' => $key,
+                            'title' => $value
+                        );
+                    }
+                }
+            }
+            
+            // If we couldn't parse categories, try a different approach
+            if (empty($categories)) {
+                // Sometimes the API returns categories in a different structure
+                pitchprint_log('Categories response structure: ' . print_r($result['data'], true));
+                
+                // Try to extract from any available data
+                if (isset($result['data']['values'])) {
+                    foreach ($result['data']['values'] as $cat) {
+                        if (isset($cat['id'], $cat['title'])) {
+                            $categories[] = array(
+                                'id' => $cat['id'],
+                                'title' => $cat['title']
+                            );
+                        }
+                    }
+                }
+            }
+            
             return array(
                 'success' => true,
-                'data' => $result['data']['data']
+                'data' => $categories
             );
         }
         
@@ -126,7 +181,39 @@ class PitchPrint_API {
      * Get designs by category
      */
     public function get_designs($category_id) {
-        return $this->make_request('fetch-designs', array('categoryId' => $category_id));
+        $result = $this->make_request('fetch-designs', array('categoryId' => $category_id));
+        
+        if ($result['success']) {
+            // Log the response structure for debugging
+            pitchprint_log('Designs response for category ' . $category_id . ': ' . print_r($result['data'], true));
+            
+            // Ensure we have the proper structure
+            if (!isset($result['data']['data'])) {
+                $result['data']['data'] = array('items' => array());
+            }
+            
+            if (!isset($result['data']['data']['items'])) {
+                $result['data']['data']['items'] = array();
+            }
+            
+            // Process items to ensure they have titles
+            $items = $result['data']['data']['items'];
+            foreach ($items as &$item) {
+                if (!isset($item['title']) || empty($item['title'])) {
+                    // Use design name or ID as fallback
+                    if (isset($item['name'])) {
+                        $item['title'] = $item['name'];
+                    } elseif (isset($item['designName'])) {
+                        $item['title'] = $item['designName'];
+                    } else {
+                        $item['title'] = $item['designId'];
+                    }
+                }
+            }
+            $result['data']['data']['items'] = $items;
+        }
+        
+        return $result;
     }
     
     /**
