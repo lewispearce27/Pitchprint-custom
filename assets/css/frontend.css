@@ -1,0 +1,253 @@
+/**
+ * PitchPrint Frontend Styles
+ */
+
+/* Buttons Wrapper */
+.pitchprint-buttons-wrapper {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+/* PitchPrint Buttons */
+.pitchprint-button {
+    display: inline-block;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.pitchprint-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.pitchprint-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.pitchprint-button:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* Design Online Button */
+.design-online-btn {
+    background-color: #2271b1;
+    color: #ffffff;
+}
+
+.design-online-btn:hover {
+    background-color: #135e96;
+    color: #ffffff;
+}
+
+/* Upload Artwork Button */
+.upload-artwork-btn {
+    background-color: #00a32a;
+    color: #ffffff;
+}
+
+.upload-artwork-btn:hover {
+    background-color: #008a20;
+    color: #ffffff;
+}
+
+/* Edit Design Button */
+.edit-design-btn {
+    background-color: #dba617;
+    color: #ffffff;
+    margin-top: 10px;
+}
+
+.edit-design-btn:hover {
+    background-color: #b8920e;
+    color: #ffffff;
+}
+
+/* Button Icons */
+.pitchprint-button .dashicons {
+    margin-right: 8px;
+    vertical-align: middle;
+    font-size: 18px;
+    line-height: 1;
+}
+
+/* Loader */
+.pitchprint-loader {
+    margin-top: 20px;
+    padding: 20px;
+    text-align: center;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+}
+
+.pitchprint-loader .spinner {
+    float: none;
+    margin: 0 auto 10px;
+    display: block;
+}
+
+/* Preview Section */
+.pitchprint-preview {
+    margin-top: 30px;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+.pitchprint-preview h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.pitchprint-preview .preview-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.pitchprint-preview .preview-images img {
+    max-width: 200px;
+    height: auto;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.pitchprint-preview .preview-images img:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Order Design Display */
+.pitchprint-order-design {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+}
+
+.pitchprint-order-design a {
+    color: #2271b1;
+    text-decoration: none;
+}
+
+.pitchprint-order-design a:hover {
+    text-decoration: underline;
+}
+
+/* Modal Styles */
+.pitchprint-modal {
+    display: block;
+    position: fixed;
+    z-index: 999999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.8);
+}
+
+.pitchprint-modal .modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 1000px;
+    border-radius: 4px;
+    position: relative;
+}
+
+.pitchprint-modal .close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    line-height: 20px;
+    cursor: pointer;
+}
+
+.pitchprint-modal .close:hover,
+.pitchprint-modal .close:focus {
+    color: #000;
+    text-decoration: none;
+}
+
+.pitchprint-modal h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+.pitchprint-modal .design-preview-container img {
+    max-width: 100%;
+    height: auto;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 768px) {
+    .pitchprint-button {
+        display: block;
+        width: 100%;
+        margin-right: 0;
+    }
+    
+    .pitchprint-preview .preview-images {
+        justify-content: center;
+    }
+    
+    .pitchprint-preview .preview-images img {
+        max-width: 100%;
+    }
+    
+    .pitchprint-modal .modal-content {
+        width: 95%;
+        margin: 10% auto;
+    }
+}
+
+/* WooCommerce Compatibility */
+.woocommerce div.product form.cart .pitchprint-buttons-wrapper {
+    clear: both;
+}
+
+.woocommerce div.product .pitchprint-button {
+    margin-bottom: 1em;
+}
+
+/* Variable Product Compatibility */
+.variations_form .pitchprint-buttons-wrapper {
+    margin-top: 20px;
+}
+
+/* Cart Page Styles */
+.woocommerce-cart .pitchprint-design-info {
+    font-size: 0.9em;
+    color: #666;
+}
+
+/* Checkout Page Styles */
+.woocommerce-checkout .pitchprint-design-info {
+    font-size: 0.9em;
+    color: #666;
+    margin-top: 5px;
+}
