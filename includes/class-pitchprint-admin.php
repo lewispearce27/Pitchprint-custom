@@ -43,7 +43,6 @@ class PitchPrint_Admin {
         add_action('wp_ajax_pitchprint_test_connection', array($this, 'test_connection'));
         add_action('wp_ajax_pitchprint_fetch_categories', array($this, 'fetch_categories'));
         add_action('wp_ajax_pitchprint_fetch_designs', array($this, 'fetch_designs'));
-        add_action('wp_ajax_pitchprint_scan_categories', array($this, 'scan_categories'));
     }
     
     /**
@@ -59,16 +58,6 @@ class PitchPrint_Admin {
             'dashicons-admin-generic',
             30
         );
-        
-        // Add submenu for categories
-        add_submenu_page(
-            'pitchprint-settings',
-            __('Categories', 'pitchprint-integration'),
-            __('Categories', 'pitchprint-integration'),
-            'manage_options',
-            'pitchprint-categories',
-            array($this, 'categories_page')
-        );
     }
     
     /**
@@ -77,7 +66,6 @@ class PitchPrint_Admin {
     public function register_settings() {
         register_setting('pitchprint_settings_group', 'pitchprint_api_key');
         register_setting('pitchprint_settings_group', 'pitchprint_secret_key');
-        register_setting('pitchprint_settings_group', 'pitchprint_categories');
     }
     
     /**
@@ -146,7 +134,6 @@ class PitchPrint_Admin {
                 <ol>
                     <li><?php _e('Enter your API Key and Secret Key above', 'pitchprint-integration'); ?></li>
                     <li><?php _e('Save the settings and test the connection', 'pitchprint-integration'); ?></li>
-                    <li><?php _e('Go to PitchPrint > Categories to manage design categories', 'pitchprint-integration'); ?></li>
                     <li><?php _e('Go to any product and configure PitchPrint settings', 'pitchprint-integration'); ?></li>
                     <li><?php _e('Select button types and design templates for each product', 'pitchprint-integration'); ?></li>
                 </ol>
@@ -162,123 +149,6 @@ class PitchPrint_Admin {
                 </p>
             </div>
         </div>
-        <?php
-    }
-    
-    /**
-     * Categories management page
-     */
-    public function categories_page() {
-        $categories = get_option('pitchprint_categories', array());
-        ?>
-        <div class="wrap">
-            <h1><?php _e('PitchPrint Categories', 'pitchprint-integration'); ?></h1>
-            
-            <div class="notice notice-info">
-                <p><?php _e('Add your PitchPrint category IDs and names here. You can find these in your PitchPrint admin panel under Designs > Categories.', 'pitchprint-integration'); ?></p>
-            </div>
-            
-            <form method="post" action="options.php">
-                <?php settings_fields('pitchprint_settings_group'); ?>
-                
-                <table class="wp-list-table widefat fixed striped">
-                    <thead>
-                        <tr>
-                            <th><?php _e('Category ID', 'pitchprint-integration'); ?></th>
-                            <th><?php _e('Category Name', 'pitchprint-integration'); ?></th>
-                            <th><?php _e('Actions', 'pitchprint-integration'); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody id="categories-list">
-                        <?php if (!empty($categories)) : ?>
-                            <?php foreach ($categories as $index => $category) : ?>
-                                <tr>
-                                    <td>
-                                        <input type="text" 
-                                               name="pitchprint_categories[<?php echo $index; ?>][id]" 
-                                               value="<?php echo esc_attr($category['id']); ?>" 
-                                               class="regular-text" />
-                                    </td>
-                                    <td>
-                                        <input type="text" 
-                                               name="pitchprint_categories[<?php echo $index; ?>][name]" 
-                                               value="<?php echo esc_attr($category['name']); ?>" 
-                                               class="regular-text" />
-                                    </td>
-                                    <td>
-                                        <button type="button" class="button remove-category"><?php _e('Remove', 'pitchprint-integration'); ?></button>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-                
-                <p>
-                    <button type="button" id="add-category" class="button button-secondary">
-                        <?php _e('Add Category', 'pitchprint-integration'); ?>
-                    </button>
-                    <button type="button" id="scan-categories" class="button button-secondary">
-                        <?php _e('Scan for Categories', 'pitchprint-integration'); ?>
-                    </button>
-                </p>
-                
-                <p class="submit">
-                    <?php submit_button(__('Save Categories', 'pitchprint-integration')); ?>
-                </p>
-            </form>
-        </div>
-        
-        <script type="text/javascript">
-            jQuery(document).ready(function($) {
-                var categoryIndex = <?php echo count($categories); ?>;
-                
-                // Add category row
-                $('#add-category').on('click', function() {
-                    var row = '<tr>' +
-                        '<td><input type="text" name="pitchprint_categories[' + categoryIndex + '][id]" class="regular-text" placeholder="Category ID" /></td>' +
-                        '<td><input type="text" name="pitchprint_categories[' + categoryIndex + '][name]" class="regular-text" placeholder="Category Name" /></td>' +
-                        '<td><button type="button" class="button remove-category">Remove</button></td>' +
-                        '</tr>';
-                    $('#categories-list').append(row);
-                    categoryIndex++;
-                });
-                
-                // Remove category row
-                $(document).on('click', '.remove-category', function() {
-                    $(this).closest('tr').remove();
-                });
-                
-                // Scan for categories
-                $('#scan-categories').on('click', function() {
-                    var $button = $(this);
-                    $button.prop('disabled', true).text('Scanning...');
-                    
-                    $.ajax({
-                        url: ajaxurl,
-                        type: 'POST',
-                        data: {
-                            action: 'pitchprint_scan_categories',
-                            nonce: '<?php echo wp_create_nonce('pitchprint_admin_nonce'); ?>'
-                        },
-                        success: function(response) {
-                            if (response.success) {
-                                alert('Scan complete! Found ' + response.data.count + ' categories.');
-                                location.reload();
-                            } else {
-                                alert('Scan failed: ' + response.data.message);
-                            }
-                        },
-                        error: function() {
-                            alert('Error scanning categories');
-                        },
-                        complete: function() {
-                            $button.prop('disabled', false).text('Scan for Categories');
-                        }
-                    });
-                });
-            });
-        </script>
         <?php
     }
     
@@ -324,29 +194,6 @@ class PitchPrint_Admin {
             wp_die('Security check failed');
         }
         
-        // Get saved categories
-        $categories = get_option('pitchprint_categories', array());
-        
-        if (empty($categories)) {
-            wp_send_json_error(array(
-                'message' => __('No categories configured. Please add categories in PitchPrint > Categories.', 'pitchprint-integration')
-            ));
-        }
-        
-        wp_send_json_success(array(
-            'items' => $categories
-        ));
-    }
-    
-    /**
-     * Scan for categories by testing known category IDs
-     */
-    public function scan_categories() {
-        // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'pitchprint_admin_nonce')) {
-            wp_die('Security check failed');
-        }
-        
         $api_key = get_option('pitchprint_api_key');
         $secret_key = get_option('pitchprint_secret_key');
         
@@ -356,30 +203,17 @@ class PitchPrint_Admin {
             ));
         }
         
-        $api = new PitchPrint_API($api_key, $secret_key);
+        // For now, we'll build categories from successful design fetches
+        // Store known categories in transient
+        $known_categories = get_transient('pitchprint_known_categories');
         
-        // Common category IDs to test (you can expand this list)
-        $test_categories = array('cat1', 'cat2', 'cat3', 'cat4', 'cat5');
-        $found_categories = array();
-        
-        foreach ($test_categories as $cat_id) {
-            $result = $api->get_designs($cat_id);
-            if ($result['success'] && isset($result['data']['data']['items'])) {
-                $found_categories[] = array(
-                    'id' => $cat_id,
-                    'name' => 'Category ' . $cat_id
-                );
-            }
+        if ($known_categories === false) {
+            $known_categories = array();
         }
         
-        // Save found categories
-        if (!empty($found_categories)) {
-            update_option('pitchprint_categories', $found_categories);
-        }
-        
+        // Return known categories
         wp_send_json_success(array(
-            'count' => count($found_categories),
-            'categories' => $found_categories
+            'items' => $known_categories
         ));
     }
     
@@ -413,6 +247,38 @@ class PitchPrint_Admin {
         $result = $api->get_designs($category_id);
         
         if ($result['success']) {
+            // Store this category as known if we get results
+            if (isset($result['data']['data']['items']) && !empty($result['data']['data']['items'])) {
+                $known_categories = get_transient('pitchprint_known_categories');
+                if (!is_array($known_categories)) {
+                    $known_categories = array();
+                }
+                
+                // Check if category already exists
+                $found = false;
+                foreach ($known_categories as $cat) {
+                    if ($cat['id'] === $category_id) {
+                        $found = true;
+                        break;
+                    }
+                }
+                
+                // Add category if not found
+                if (!$found) {
+                    $category_name = 'Category ' . $category_id;
+                    if (isset($result['data']['data']['categoryTitle'])) {
+                        $category_name = $result['data']['data']['categoryTitle'];
+                    }
+                    
+                    $known_categories[] = array(
+                        'id' => $category_id,
+                        'title' => $category_name
+                    );
+                    
+                    set_transient('pitchprint_known_categories', $known_categories, WEEK_IN_SECONDS);
+                }
+            }
+            
             wp_send_json_success($result['data']);
         } else {
             wp_send_json_error(array(
