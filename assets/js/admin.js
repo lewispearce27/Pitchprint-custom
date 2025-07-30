@@ -12,6 +12,18 @@
          */
         init: function() {
             this.bindEvents();
+            this.initProductTab();
+        },
+        
+        /**
+         * Initialize product tab functionality
+         */
+        initProductTab: function() {
+            // Only run on product edit pages
+            if ($('#pitchprint_product_data').length > 0) {
+                this.loadCategoriesOnProductPage();
+                this.bindProductEvents();
+            }
         },
         
         /**
@@ -45,6 +57,150 @@
                 var $form = $(this).closest('form');
                 if ($form.length && $(this).val() !== $(this).data('original-value')) {
                     self.showNotice('Remember to save your settings!', 'warning');
+                }
+            });
+        },
+        
+        /**
+         * Bind product-specific events
+         */
+        bindProductEvents: function() {
+            var self = this;
+            
+            // Show/hide fields based on button type
+            $('#pitchprint_button_type').on('change', function() {
+                self.togglePitchPrintFields();
+            });
+            
+            // Load designs when category changes
+            $('#pitchprint_category_id').on('change', function() {
+                self.loadDesigns($(this).val());
+            });
+            
+            // Initial field toggle
+            this.togglePitchPrintFields();
+        },
+        
+        /**
+         * Toggle PitchPrint fields based on button type
+         */
+        togglePitchPrintFields: function() {
+            var buttonType = $('#pitchprint_button_type').val();
+            
+            if (buttonType === 'none' || buttonType === 'upload_artwork') {
+                $('.pitchprint-category-field, .pitchprint-design-field').hide();
+            } else {
+                $('.pitchprint-category-field, .pitchprint-design-field').show();
+            }
+        },
+        
+        /**
+         * Load categories on product page
+         */
+        loadCategoriesOnProductPage: function() {
+            var self = this;
+            var $categorySelect = $('#pitchprint_category_id');
+            var savedCategoryId = $categorySelect.data('saved-value') || $categorySelect.find('option:selected').val();
+            var savedDesignId = $('#pitchprint_design_id').data('saved-value') || $('#pitchprint_design_id').find('option:selected').val();
+            
+            if (!$categorySelect.length) {
+                return;
+            }
+            
+            $categorySelect.empty().append('<option value="">Loading categories...</option>');
+            
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'pitchprint_fetch_categories',
+                    nonce: pitchprint_admin_vars.nonce
+                },
+                success: function(response) {
+                    $categorySelect.empty().append('<option value="">Select a category...</option>');
+                    
+                    if (response.success && response.data) {
+                        var categories = response.data;
+                        
+                        if (Array.isArray(categories)) {
+                            $.each(categories, function(index, category) {
+                                var selected = (category.id === savedCategoryId) ? ' selected="selected"' : '';
+                                $categorySelect.append(
+                                    '<option value="' + category.id + '"' + selected + '>' + 
+                                    category.title + 
+                                    '</option>'
+                                );
+                            });
+                        } else if (typeof categories === 'object') {
+                            $.each(categories, function(id, title) {
+                                var selected = (id === savedCategoryId) ? ' selected="selected"' : '';
+                                $categorySelect.append(
+                                    '<option value="' + id + '"' + selected + '>' + 
+                                    title + 
+                                    '</option>'
+                                );
+                            });
+                        }
+                        
+                        // If we have a saved category, load its designs
+                        if (savedCategoryId) {
+                            self.loadDesigns(savedCategoryId, savedDesignId);
+                        }
+                    } else {
+                        $categorySelect.append('<option value="">No categories found</option>');
+                    }
+                },
+                error: function() {
+                    $categorySelect.empty().append('<option value="">Error loading categories</option>');
+                }
+            });
+        },
+        
+        /**
+         * Load designs for a category
+         */
+        loadDesigns: function(categoryId, savedDesignId) {
+            var $designSelect = $('#pitchprint_design_id');
+            
+            if (!categoryId) {
+                $designSelect.empty().append('<option value="">Select a design...</option>');
+                return;
+            }
+            
+            $designSelect.empty().append('<option value="">Loading designs...</option>');
+            
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'pitchprint_fetch_designs',
+                    category_id: categoryId,
+                    nonce: pitchprint_admin_vars.nonce
+                },
+                success: function(response) {
+                    $designSelect.empty().append('<option value="">Select a design...</option>');
+                    
+                    if (response.success && response.data && response.data.data && response.data.data.items) {
+                        var designs = response.data.data.items;
+                        
+                        if (designs.length > 0) {
+                            $.each(designs, function(index, design) {
+                                var selected = (design.designId === savedDesignId) ? ' selected="selected"' : '';
+                                $designSelect.append(
+                                    '<option value="' + design.designId + '"' + selected + '>' + 
+                                    (design.title || design.designId) + 
+                                    '</option>'
+                                );
+                            });
+                        } else {
+                            $designSelect.append('<option value="">No designs found in this category</option>');
+                        }
+                    } else {
+                        $designSelect.append('<option value="">No designs found</option>');
+                    }
+                },
+                error: function() {
+                    $designSelect.empty().append('<option value="">Error loading designs</option>');
                 }
             });
         },
