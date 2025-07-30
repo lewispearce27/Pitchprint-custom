@@ -28,6 +28,26 @@
             
             // Initialize PitchPrint client
             this.initializePitchPrint();
+            
+            // Check design button state
+            this.checkDesignButtonState();
+        },
+        
+        /**
+         * Check and update design button state
+         */
+        checkDesignButtonState: function() {
+            var $designBtn = $('#pitchprint-design-btn');
+            if ($designBtn.length) {
+                var designId = $designBtn.data('design-id');
+                if (!designId || designId === '') {
+                    $designBtn.prop('disabled', true)
+                        .attr('title', 'No design template selected for this product');
+                } else {
+                    $designBtn.prop('disabled', false)
+                        .removeAttr('title');
+                }
+            }
         },
         
         /**
@@ -39,18 +59,21 @@
             // Design Online button
             $(document).on('click', '#pitchprint-design-btn', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 self.openDesigner();
             });
             
             // Upload Artwork button
             $(document).on('click', '#pitchprint-upload-btn', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 self.openUploadModal();
             });
             
             // Edit design button
             $(document).on('click', '.edit-design-btn', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 self.mode = 'edit';
                 self.openDesigner();
             });
@@ -77,7 +100,15 @@
             // Close modal
             $(document).on('click', '#pitchprint-upload-modal .close, #pitchprint-upload-modal .cancel-upload', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 self.closeUploadModal();
+            });
+            
+            // Click outside modal to close
+            $(document).on('click', '#pitchprint-upload-modal', function(e) {
+                if (e.target === this) {
+                    self.closeUploadModal();
+                }
             });
             
             // File input change
@@ -93,6 +124,7 @@
             // Remove file
             $(document).on('click', '.upload-area .remove-file', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 $('#pitchprint-file-input').val('');
                 $('.upload-area .file-info').hide();
                 $('.upload-area .upload-label').show();
@@ -103,16 +135,19 @@
             
             uploadArea.on('dragover', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 $(this).addClass('drag-over');
             });
             
             uploadArea.on('dragleave', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 $(this).removeClass('drag-over');
             });
             
             uploadArea.on('drop', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 $(this).removeClass('drag-over');
                 
                 var files = e.originalEvent.dataTransfer.files;
@@ -122,10 +157,20 @@
                 }
             });
             
-            // Upload form submit
+            // Upload form submit - PREVENT DEFAULT FORM SUBMISSION
             $(document).on('submit', '#pitchprint-upload-form', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 self.handleFileUpload();
+                return false; // Extra safety to prevent form submission
+            });
+            
+            // Prevent button from submitting cart form
+            $('#pitchprint-upload-form button[type="submit"]').on('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                $('#pitchprint-upload-form').submit();
+                return false;
             });
         },
         
@@ -152,7 +197,7 @@
                 }
             };
             
-            // Add design ID if available
+            // Add design ID if available and not in upload mode
             if (pitchPrintProductData.designId && this.mode !== 'upload') {
                 options.designId = pitchPrintProductData.designId;
             }
@@ -234,8 +279,10 @@
                 return;
             }
             
-            if (!pitchPrintProductData.designId && pitchPrintProductData.buttonType !== 'upload_artwork') {
-                alert('No design template selected for this product.');
+            var designId = $('#pitchprint-design-btn').data('design-id');
+            
+            if (!designId && pitchPrintProductData.buttonType !== 'upload_artwork') {
+                alert('No design template selected for this product. Please contact the store administrator.');
                 return;
             }
             
@@ -273,7 +320,7 @@
             
             if (!fileInput.files || !fileInput.files[0]) {
                 alert('Please select a file to upload');
-                return;
+                return false;
             }
             
             var formData = new FormData();
@@ -313,6 +360,8 @@
                     alert('Error uploading file. Please try again.');
                 }
             });
+            
+            return false; // Prevent any form submission
         },
         
         /**
