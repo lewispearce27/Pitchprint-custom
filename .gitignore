@@ -1,0 +1,87 @@
+# WordPress core files
+/wordpress/
+
+# Logs
+*.log
+error_log
+access_log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Editor files
+*.swp
+*.swo
+*~
+.project
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Composer
+/vendor/
+composer.lock
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build files
+/build/
+/dist/
+*.zip
+*.tar.gz
+
+# Development files
+.env
+.env.*
+!.env.example
+config.local.php
+
+# Cache
+.cache/
+*.cache
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+*.tmp
+
+# Documentation build
+/docs/_build/
+
+# Test coverage
+/coverage/
+.phpunit.result.cache
+
+# WordPress specific
+wp-config.php
+/wp-content/uploads/
+/wp-content/upgrade/
+/wp-content/backup-db/
+/wp-content/backups/
+/wp-content/blogs.dir/
+/wp-content/cache/
+/wp-content/advanced-cache.php
+/wp-content/wp-cache-config.php
+
+# PitchPrint specific
+/temp/
+/cache/
+*.pdf
+*.jpg
+*.jpeg
+*.png
+!assets/images/*.png
+!assets/images/*.jpg
