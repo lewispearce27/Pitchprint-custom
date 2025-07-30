@@ -99,17 +99,15 @@ class PitchPrint_Product {
                 </p>
                 
                 <p class="form-field pitchprint-category-field">
-                    <label for="pitchprint_category_id"><?php _e('Design Category', 'pitchprint-integration'); ?></label>
-                    <select id="pitchprint_category_id" name="_pitchprint_category_id" style="width: 50%;">
-                        <option value=""><?php _e('Select a category...', 'pitchprint-integration'); ?></option>
-                        <?php if ($category_id) : ?>
-                            <option value="<?php echo esc_attr($category_id); ?>" selected>
-                                <?php echo esc_html($category_id); ?>
-                            </option>
-                        <?php endif; ?>
-                    </select>
+                    <label for="pitchprint_category_id"><?php _e('Design Category ID', 'pitchprint-integration'); ?></label>
+                    <input type="text" 
+                           id="pitchprint_category_id" 
+                           name="_pitchprint_category_id" 
+                           value="<?php echo esc_attr($category_id); ?>" 
+                           style="width: 50%;"
+                           placeholder="<?php _e('Enter category ID from PitchPrint', 'pitchprint-integration'); ?>" />
                     <span class="description">
-                        <?php _e('Select a design category from PitchPrint', 'pitchprint-integration'); ?>
+                        <?php _e('Enter the category ID from your PitchPrint admin panel', 'pitchprint-integration'); ?>
                     </span>
                 </p>
                 
@@ -123,8 +121,11 @@ class PitchPrint_Product {
                             </option>
                         <?php endif; ?>
                     </select>
+                    <button type="button" class="button" id="load-pitchprint-designs" <?php echo empty($category_id) ? 'disabled' : ''; ?>>
+                        <?php _e('Load Designs', 'pitchprint-integration'); ?>
+                    </button>
                     <span class="description">
-                        <?php _e('Select a specific design template', 'pitchprint-integration'); ?>
+                        <?php _e('Enter a category ID above, then click Load Designs', 'pitchprint-integration'); ?>
                     </span>
                 </p>
                 
@@ -145,14 +146,6 @@ class PitchPrint_Product {
                                 ?>
                             </p>
                         </div>
-                    <?php else : ?>
-                        <div class="notice notice-info inline">
-                            <p>
-                                <button type="button" class="button" id="load-pitchprint-categories">
-                                    <?php _e('Load Categories', 'pitchprint-integration'); ?>
-                                </button>
-                            </p>
-                        </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -164,7 +157,11 @@ class PitchPrint_Product {
                         <strong><?php _e('Design Online:', 'pitchprint-integration'); ?></strong> 
                         <?php _e('Opens PitchPrint designer with the selected template', 'pitchprint-integration'); ?><br>
                         <strong><?php _e('Upload Artwork:', 'pitchprint-integration'); ?></strong> 
-                        <?php _e('Allows direct file upload to a blank PitchPrint template', 'pitchprint-integration'); ?>
+                        <?php _e('Shows upload form, then opens PitchPrint with the uploaded file', 'pitchprint-integration'); ?><br><br>
+                        <strong><?php _e('Finding Category IDs:', 'pitchprint-integration'); ?></strong><br>
+                        <?php _e('1. Log into your PitchPrint admin panel', 'pitchprint-integration'); ?><br>
+                        <?php _e('2. Go to Designs > Categories', 'pitchprint-integration'); ?><br>
+                        <?php _e('3. The category ID is shown for each category', 'pitchprint-integration'); ?>
                     </span>
                 </p>
             </div>
@@ -191,56 +188,24 @@ class PitchPrint_Product {
                 // Toggle on change
                 $('#pitchprint_button_type').on('change', togglePitchPrintFields);
                 
-                // Load categories
-                $('#load-pitchprint-categories').on('click', function() {
-                    var $button = $(this);
-                    $button.prop('disabled', true).text('<?php _e('Loading...', 'pitchprint-integration'); ?>');
-                    
-                    $.ajax({
-                        url: pitchprint_admin_vars.ajax_url,
-                        type: 'POST',
-                        data: {
-                            action: 'pitchprint_fetch_categories',
-                            nonce: pitchprint_admin_vars.nonce
-                        },
-                        success: function(response) {
-                            if (response.success) {
-                                var $select = $('#pitchprint_category_id');
-                                $select.empty().append('<option value=""><?php _e('Select a category...', 'pitchprint-integration'); ?></option>');
-                                
-                                if (response.data && response.data.items) {
-                                    $.each(response.data.items, function(index, category) {
-                                        $select.append(
-                                            '<option value="' + category.id + '">' + 
-                                            category.title + 
-                                            '</option>'
-                                        );
-                                    });
-                                }
-                                
-                                $button.text('<?php _e('Categories Loaded', 'pitchprint-integration'); ?>');
-                            } else {
-                                alert(response.data.message);
-                                $button.prop('disabled', false).text('<?php _e('Load Categories', 'pitchprint-integration'); ?>');
-                            }
-                        },
-                        error: function() {
-                            alert('<?php _e('Error loading categories', 'pitchprint-integration'); ?>');
-                            $button.prop('disabled', false).text('<?php _e('Load Categories', 'pitchprint-integration'); ?>');
-                        }
-                    });
+                // Enable/disable load designs button when category ID changes
+                $('#pitchprint_category_id').on('input', function() {
+                    var categoryId = $(this).val().trim();
+                    $('#load-pitchprint-designs').prop('disabled', !categoryId);
                 });
                 
-                // Load designs when category changes
-                $('#pitchprint_category_id').on('change', function() {
-                    var categoryId = $(this).val();
+                // Load designs when button clicked
+                $('#load-pitchprint-designs').on('click', function() {
+                    var categoryId = $('#pitchprint_category_id').val().trim();
+                    var $button = $(this);
                     var $designSelect = $('#pitchprint_design_id');
                     
                     if (!categoryId) {
-                        $designSelect.empty().append('<option value=""><?php _e('Select a design...', 'pitchprint-integration'); ?></option>');
+                        alert('<?php _e('Please enter a category ID', 'pitchprint-integration'); ?>');
                         return;
                     }
                     
+                    $button.prop('disabled', true).text('<?php _e('Loading...', 'pitchprint-integration'); ?>');
                     $designSelect.empty().append('<option value=""><?php _e('Loading designs...', 'pitchprint-integration'); ?></option>');
                     
                     $.ajax({
@@ -255,23 +220,32 @@ class PitchPrint_Product {
                             if (response.success) {
                                 $designSelect.empty().append('<option value=""><?php _e('Select a design...', 'pitchprint-integration'); ?></option>');
                                 
-                                if (response.data && response.data.items) {
-                                    $.each(response.data.items, function(index, design) {
+                                if (response.data && response.data.data && response.data.data.items) {
+                                    $.each(response.data.data.items, function(index, design) {
                                         $designSelect.append(
                                             '<option value="' + design.designId + '">' + 
-                                            design.title + 
+                                            (design.title || design.designId) + 
                                             '</option>'
                                         );
                                     });
+                                    
+                                    if (response.data.data.items.length === 0) {
+                                        alert('<?php _e('No designs found in this category', 'pitchprint-integration'); ?>');
+                                    }
+                                } else {
+                                    alert('<?php _e('No designs found in this category', 'pitchprint-integration'); ?>');
                                 }
                             } else {
-                                alert(response.data.message);
+                                alert(response.data.message || '<?php _e('Error loading designs', 'pitchprint-integration'); ?>');
                                 $designSelect.empty().append('<option value=""><?php _e('Error loading designs', 'pitchprint-integration'); ?></option>');
                             }
                         },
                         error: function() {
                             alert('<?php _e('Error loading designs', 'pitchprint-integration'); ?>');
                             $designSelect.empty().append('<option value=""><?php _e('Error loading designs', 'pitchprint-integration'); ?></option>');
+                        },
+                        complete: function() {
+                            $button.prop('disabled', false).text('<?php _e('Load Designs', 'pitchprint-integration'); ?>');
                         }
                     });
                 });
