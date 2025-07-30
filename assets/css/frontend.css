@@ -97,6 +97,13 @@
     display: block;
 }
 
+.pitchprint-loader .loader-text {
+    display: block;
+    margin-top: 10px;
+    font-size: 14px;
+    color: #666;
+}
+
 /* Preview Section */
 .pitchprint-preview {
     margin-top: 30px;
@@ -133,6 +140,171 @@
 .pitchprint-preview .preview-images img:hover {
     transform: scale(1.05);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Upload Modal Styles */
+#pitchprint-upload-modal {
+    display: none;
+    position: fixed;
+    z-index: 999999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.8);
+}
+
+#pitchprint-upload-modal .modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 30px;
+    border: 1px solid #888;
+    width: 90%;
+    max-width: 600px;
+    border-radius: 8px;
+    position: relative;
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.3);
+}
+
+#pitchprint-upload-modal .close {
+    color: #aaa;
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    font-size: 32px;
+    font-weight: bold;
+    line-height: 20px;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+#pitchprint-upload-modal .close:hover,
+#pitchprint-upload-modal .close:focus {
+    color: #000;
+    text-decoration: none;
+}
+
+#pitchprint-upload-modal h2 {
+    margin-top: 0;
+    margin-bottom: 25px;
+    color: #23282d;
+    font-size: 24px;
+}
+
+/* Upload Area */
+.upload-area {
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    margin-bottom: 20px;
+    background-color: #f9f9f9;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.upload-area.drag-over {
+    border-color: #2271b1;
+    background-color: #e8f3ff;
+}
+
+.upload-area input[type="file"] {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    left: 0;
+    top: 0;
+}
+
+.upload-area .upload-label {
+    display: block;
+    cursor: pointer;
+}
+
+.upload-area .upload-label .dashicons {
+    font-size: 48px;
+    display: block;
+    margin: 0 auto 15px;
+    color: #666;
+}
+
+.upload-area .upload-label span {
+    display: block;
+    font-size: 16px;
+    color: #666;
+}
+
+.upload-area .file-info {
+    display: none;
+}
+
+.upload-area .file-info .file-name {
+    font-weight: 600;
+    color: #333;
+    margin-right: 15px;
+}
+
+.upload-area .file-info .remove-file {
+    background: #dc3232;
+    color: #fff;
+    border: none;
+    padding: 5px 15px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.upload-area .file-info .remove-file:hover {
+    background: #c92c2c;
+}
+
+/* Upload Requirements */
+.upload-requirements {
+    background-color: #f0f0f0;
+    padding: 20px;
+    border-radius: 4px;
+    margin-bottom: 25px;
+}
+
+.upload-requirements h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+.upload-requirements ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.upload-requirements li {
+    margin-bottom: 5px;
+    font-size: 14px;
+    color: #666;
+}
+
+/* Form Actions */
+.form-actions {
+    text-align: center;
+    margin-top: 25px;
+}
+
+.form-actions .button {
+    margin: 0 5px;
+    padding: 12px 30px;
+    font-size: 16px;
+}
+
+.form-actions .cancel-upload {
+    background-color: #666;
+    color: #fff;
+}
+
+.form-actions .cancel-upload:hover {
+    background-color: #555;
 }
 
 /* Order Design Display */
@@ -203,6 +375,11 @@
     border: 1px solid #ddd;
 }
 
+/* Body Modal Open */
+body.modal-open {
+    overflow: hidden;
+}
+
 /* Responsive Design */
 @media screen and (max-width: 768px) {
     .pitchprint-button {
@@ -219,9 +396,25 @@
         max-width: 100%;
     }
     
-    .pitchprint-modal .modal-content {
+    .pitchprint-modal .modal-content,
+    #pitchprint-upload-modal .modal-content {
         width: 95%;
         margin: 10% auto;
+        padding: 20px;
+    }
+    
+    .upload-area {
+        padding: 20px;
+    }
+    
+    .upload-area .upload-label .dashicons {
+        font-size: 36px;
+    }
+    
+    .form-actions .button {
+        display: block;
+        width: 100%;
+        margin: 10px 0;
     }
 }
 
