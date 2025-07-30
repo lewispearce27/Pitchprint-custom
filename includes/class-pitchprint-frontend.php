@@ -43,6 +43,9 @@ class PitchPrint_Frontend {
         add_action('wp_ajax_pitchprint_save_project', array($this, 'save_project'));
         add_action('wp_ajax_nopriv_pitchprint_save_project', array($this, 'save_project'));
         
+        add_action('wp_ajax_pitchprint_upload_file', array($this, 'handle_file_upload'));
+        add_action('wp_ajax_nopriv_pitchprint_upload_file', array($this, 'handle_file_upload'));
+        
         // Modify add to cart behavior
         add_filter('woocommerce_add_to_cart_validation', array($this, 'validate_add_to_cart'), 10, 3);
         
@@ -87,9 +90,53 @@ class PitchPrint_Frontend {
                 </button>
             <?php endif; ?>
             
+            <!-- Upload Form Modal -->
+            <div id="pitchprint-upload-modal" class="pitchprint-modal" style="display: none;">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <h2><?php _e('Upload Your Artwork', 'pitchprint-integration'); ?></h2>
+                    
+                    <form id="pitchprint-upload-form" enctype="multipart/form-data">
+                        <div class="upload-area">
+                            <input type="file" 
+                                   id="pitchprint-file-input" 
+                                   name="artwork_file" 
+                                   accept=".pdf,.jpg,.jpeg,.png,.ai,.eps,.svg" 
+                                   required>
+                            <label for="pitchprint-file-input" class="upload-label">
+                                <span class="dashicons dashicons-cloud-upload"></span>
+                                <span><?php _e('Choose a file or drag it here', 'pitchprint-integration'); ?></span>
+                            </label>
+                            <div class="file-info" style="display: none;">
+                                <span class="file-name"></span>
+                                <button type="button" class="remove-file"><?php _e('Remove', 'pitchprint-integration'); ?></button>
+                            </div>
+                        </div>
+                        
+                        <div class="upload-requirements">
+                            <h4><?php _e('File Requirements:', 'pitchprint-integration'); ?></h4>
+                            <ul>
+                                <li><?php _e('Accepted formats: PDF, JPG, PNG, AI, EPS, SVG', 'pitchprint-integration'); ?></li>
+                                <li><?php _e('Maximum file size: 50MB', 'pitchprint-integration'); ?></li>
+                                <li><?php _e('Recommended: High resolution (300 DPI)', 'pitchprint-integration'); ?></li>
+                            </ul>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="button alt">
+                                <?php _e('Continue to Designer', 'pitchprint-integration'); ?>
+                            </button>
+                            <button type="button" class="button cancel-upload">
+                                <?php _e('Cancel', 'pitchprint-integration'); ?>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
             <div id="pitchprint-loader" class="pitchprint-loader" style="display: none;">
                 <span class="spinner is-active"></span>
-                <?php _e('Loading designer...', 'pitchprint-integration'); ?>
+                <span class="loader-text"><?php _e('Loading designer...', 'pitchprint-integration'); ?></span>
             </div>
             
             <div id="pitchprint-preview" class="pitchprint-preview" style="display: none;">
@@ -107,7 +154,9 @@ class PitchPrint_Frontend {
                 buttonType: '<?php echo esc_js($button_type); ?>',
                 designId: '<?php echo esc_js($design_id); ?>',
                 categoryId: '<?php echo esc_js($category_id); ?>',
-                apiKey: '<?php echo esc_js(get_option('pitchprint_api_key')); ?>'
+                apiKey: '<?php echo esc_js(get_option('pitchprint_api_key')); ?>',
+                ajaxUrl: '<?php echo admin_url('admin-ajax.php'); ?>',
+                uploadNonce: '<?php echo wp_create_nonce('pitchprint_upload_nonce'); ?>'
             };
         </script>
         <?php
@@ -120,7 +169,62 @@ class PitchPrint_Frontend {
         ?>
         <input type="hidden" id="pitchprint_project_id" name="pitchprint_project_id" value="">
         <input type="hidden" id="pitchprint_project_data" name="pitchprint_project_data" value="">
+        <input type="hidden" id="pitchprint_uploaded_file" name="pitchprint_uploaded_file" value="">
         <?php
+    }
+    
+    /**
+     * Handle file upload via AJAX
+     */
+    public function handle_file_upload() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'pitchprint_upload_nonce')) {
+            wp_send_json_error(array('message' => __('Security check failed', 'pitchprint-integration')));
+        }
+        
+        if (empty($_FILES['artwork_file'])) {
+            wp_send_json_error(array('message' => __('No file uploaded', 'pitchprint-integration')));
+        }
+        
+        $file = $_FILES['artwork_file'];
+        
+        // Validate file type
+        $allowed_types = array('pdf', 'jpg', 'jpeg', 'png', 'ai', 'eps', 'svg');
+        $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        
+        if (!in_array($file_ext, $allowed_types)) {
+            wp_send_json_error(array('message' => __('Invalid file type', 'pitchprint-integration')));
+        }
+        
+        // Validate file size (50MB max)
+        $max_size = 50 * 1024 * 1024; // 50MB in bytes
+        if ($file['size'] > $max_size) {
+            wp_send_json_error(array('message' => __('File size exceeds 50MB limit', 'pitchprint-integration')));
+        }
+        
+        // Upload file using WordPress functions
+        $upload_overrides = array('test_form' => false);
+        $uploaded_file = wp_handle_upload($file, $upload_overrides);
+        
+        if (isset($uploaded_file['error'])) {
+            wp_send_json_error(array('message' => $uploaded_file['error']));
+        }
+        
+        // Store file info in session or temporary option
+        $file_id = 'pp_upload_' . wp_generate_password(12, false);
+        set_transient($file_id, array(
+            'url' => $uploaded_file['url'],
+            'file' => $uploaded_file['file'],
+            'type' => $uploaded_file['type'],
+            'name' => $file['name']
+        ), HOUR_IN_SECONDS); // Store for 1 hour
+        
+        wp_send_json_success(array(
+            'file_id' => $file_id,
+            'file_url' => $uploaded_file['url'],
+            'file_name' => $file['name'],
+            'message' => __('File uploaded successfully', 'pitchprint-integration')
+        ));
     }
     
     /**
@@ -160,7 +264,16 @@ class PitchPrint_Frontend {
             ));
         }
         
-        // You can add additional processing here if needed
+        // Clean up uploaded file if it was temporary
+        if (isset($_POST['uploaded_file_id'])) {
+            $file_id = sanitize_text_field($_POST['uploaded_file_id']);
+            $file_data = get_transient($file_id);
+            if ($file_data && isset($file_data['file']) && file_exists($file_data['file'])) {
+                // Optionally delete the temporary file
+                // wp_delete_file($file_data['file']);
+            }
+            delete_transient($file_id);
+        }
         
         wp_send_json_success(array(
             'message' => __('Project saved successfully', 'pitchprint-integration'),
