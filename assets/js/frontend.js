@@ -9,6 +9,7 @@
         
         ppclient: null,
         mode: 'new',
+        currentMode: null,
         projectId: null,
         projectData: null,
         uploadedFileId: null,
@@ -39,7 +40,7 @@
         checkDesignButtonState: function() {
             var $designBtn = $('#pitchprint-design-btn');
             if ($designBtn.length) {
-                var designId = $designBtn.data('design-id');
+                var designId = pitchPrintProductData.designId;
                 if (!designId || designId === '') {
                     $designBtn.prop('disabled', true)
                         .attr('title', 'No design template selected for this product');
@@ -185,6 +186,11 @@
                 return;
             }
             
+            // Don't initialize if already initialized with same mode
+            if (this.ppclient && this.currentMode === this.mode) {
+                return;
+            }
+            
             var options = {
                 apiKey: pitchPrintProductData.apiKey,
                 custom: true,
@@ -200,12 +206,16 @@
             // Add design ID if available and not in upload mode
             if (pitchPrintProductData.designId && this.mode !== 'upload') {
                 options.designId = pitchPrintProductData.designId;
+                console.log('Initializing with design ID:', pitchPrintProductData.designId);
             }
             
             // Add project ID if editing
             if (this.mode === 'edit' && this.projectId) {
                 options.projectId = this.projectId;
             }
+            
+            // Store current mode
+            this.currentMode = this.mode;
             
             // Create PitchPrint client instance
             this.ppclient = new PitchPrintClient(options);
@@ -220,17 +230,26 @@
         attachPitchPrintEvents: function() {
             var self = this;
             
+            // Remove any existing event handlers first
+            if (this.ppclient) {
+                this.ppclient.off('app-validated');
+                this.ppclient.off('project-saved');
+                this.ppclient.off('design-loaded');
+                this.ppclient.off('after-close-app');
+            }
+            
             // App validated event
             this.ppclient.on('app-validated', function() {
                 $('#pitchprint-loader').hide();
                 console.log('PitchPrint app validated');
                 
-                // If we have an uploaded file, load it after app is ready
+                // If we have an uploaded file and mode is upload, add the image
                 if (self.uploadedFileUrl && self.mode === 'upload') {
                     setTimeout(function() {
-                        self.ppclient.fire('load-image', {
+                        console.log('Adding uploaded image to canvas:', self.uploadedFileUrl);
+                        self.ppclient.fire('add-image', {
                             url: self.uploadedFileUrl,
-                            type: 'image'
+                            target: 'canvas'
                         });
                     }, 1000);
                 }
@@ -274,17 +293,21 @@
          * Open designer
          */
         openDesigner: function() {
-            if (!this.ppclient) {
-                alert('PitchPrint is not initialized. Please refresh the page.');
+            if (!pitchPrintProductData.apiKey) {
+                alert('PitchPrint is not configured. Please contact the store administrator.');
                 return;
             }
             
-            var designId = $('#pitchprint-design-btn').data('design-id');
+            var designId = pitchPrintProductData.designId;
             
             if (!designId && pitchPrintProductData.buttonType !== 'upload_artwork') {
                 alert('No design template selected for this product. Please contact the store administrator.');
                 return;
             }
+            
+            // Reinitialize with correct mode and design
+            this.mode = 'new';
+            this.initializePitchPrint();
             
             $('#pitchprint-loader').show();
             this.ppclient.showApp();
@@ -347,7 +370,7 @@
                         // Store uploaded file info
                         $('#pitchprint_uploaded_file').val(self.uploadedFileId);
                         
-                        // Open designer with blank canvas
+                        // Open designer with uploaded artwork
                         self.mode = 'upload';
                         self.openUploaderDesigner();
                     } else {
@@ -370,8 +393,8 @@
         openUploaderDesigner: function() {
             var self = this;
             
-            // Create a new client for blank canvas
-            var blankOptions = {
+            // Create options for the designer with the selected template
+            var designerOptions = {
                 apiKey: pitchPrintProductData.apiKey,
                 custom: true,
                 isvx: true,
@@ -383,23 +406,26 @@
                 }
             };
             
-            // Reinitialize with blank canvas
-            this.ppclient = new PitchPrintClient(blankOptions);
+            // If we have a design template selected, use it
+            if (pitchPrintProductData.designId) {
+                designerOptions.designId = pitchPrintProductData.designId;
+                console.log('Opening designer with template:', pitchPrintProductData.designId);
+            } else {
+                console.log('No template selected, opening blank canvas');
+            }
+            
+            // Set mode to upload so the event handler knows to add the image
+            this.mode = 'upload';
+            this.currentMode = 'upload';
+            
+            // Reinitialize with the template
+            this.ppclient = new PitchPrintClient(designerOptions);
             this.attachPitchPrintEvents();
             
             $('#pitchprint-loader .loader-text').text('Loading designer...');
             
-            // Show app first
+            // Show app
             this.ppclient.showApp();
-            
-            // Create blank page after a short delay
-            setTimeout(function() {
-                self.ppclient.fire('blank-page', {
-                    width: 8.5,
-                    height: 11,
-                    title: "Your Artwork"
-                });
-            }, 2000);
         },
         
         /**
