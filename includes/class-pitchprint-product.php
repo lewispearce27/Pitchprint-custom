@@ -73,6 +73,12 @@ class PitchPrint_Product {
         $button_type = get_post_meta($post->ID, '_pitchprint_button_type', true);
         $category_id = get_post_meta($post->ID, '_pitchprint_category_id', true);
         $design_id = get_post_meta($post->ID, '_pitchprint_design_id', true);
+        
+        // Debug logging
+        pitchprint_log('Product Panel - Post ID: ' . $post->ID);
+        pitchprint_log('Product Panel - Button Type: ' . $button_type);
+        pitchprint_log('Product Panel - Category ID: ' . $category_id);
+        pitchprint_log('Product Panel - Design ID: ' . $design_id);
         ?>
         
         <div id="pitchprint_product_data" class="panel woocommerce_options_panel">
@@ -134,6 +140,10 @@ class PitchPrint_Product {
                     </span>
                 </p>
                 
+                <!-- Hidden debug fields -->
+                <input type="hidden" id="debug_saved_design" value="<?php echo esc_attr($design_id); ?>">
+                <input type="hidden" id="debug_saved_category" value="<?php echo esc_attr($category_id); ?>">
+                
                 <div class="pitchprint-connection-status">
                     <?php
                     $api_key = get_option('pitchprint_api_key');
@@ -170,12 +180,13 @@ class PitchPrint_Product {
         
         <script type="text/javascript">
             jQuery(document).ready(function($) {
-                var savedCategoryId = '<?php echo esc_js($category_id); ?>';
-                var savedDesignId = '<?php echo esc_js($design_id); ?>';
+                // Get saved values from hidden fields to ensure we have them
+                var savedCategoryId = $('#debug_saved_category').val() || '<?php echo esc_js($category_id); ?>';
+                var savedDesignId = $('#debug_saved_design').val() || '<?php echo esc_js($design_id); ?>';
                 
                 // Debug logging
-                console.log('Saved category:', savedCategoryId);
-                console.log('Saved design:', savedDesignId);
+                console.log('Saved category from PHP:', savedCategoryId);
+                console.log('Saved design from PHP:', savedDesignId);
                 
                 // Show/hide fields based on button type
                 function togglePitchPrintFields() {
@@ -230,7 +241,8 @@ class PitchPrint_Product {
                                 // If we have a saved category, trigger change to load designs
                                 if (savedCategoryId) {
                                     $categorySelect.val(savedCategoryId);
-                                    $categorySelect.trigger('change');
+                                    // Load designs for the saved category
+                                    loadDesigns(savedCategoryId);
                                 }
                             } else {
                                 $categorySelect.append('<option value=""><?php _e('No categories found', 'pitchprint-integration'); ?></option>');
@@ -242,12 +254,11 @@ class PitchPrint_Product {
                     });
                 }
                 
-                // Load designs when category changes
-                $('#pitchprint_category_id').on('change', function() {
-                    var categoryId = $(this).val();
+                // Load designs function
+                function loadDesigns(categoryId) {
                     var $designSelect = $('#pitchprint_design_id');
                     
-                    console.log('Category changed to:', categoryId);
+                    console.log('Loading designs for category:', categoryId);
                     
                     if (!categoryId) {
                         $designSelect.empty().append('<option value=""><?php _e('Select a design...', 'pitchprint-integration'); ?></option>');
@@ -279,7 +290,8 @@ class PitchPrint_Product {
                                     });
                                     
                                     // Set the saved design if it exists
-                                    if (savedDesignId) {
+                                    if (savedDesignId && savedDesignId !== 'undefined') {
+                                        console.log('Setting saved design:', savedDesignId);
                                         $designSelect.val(savedDesignId);
                                     }
                                     
@@ -299,6 +311,18 @@ class PitchPrint_Product {
                             $designSelect.empty().append('<option value=""><?php _e('Error loading designs', 'pitchprint-integration'); ?></option>');
                         }
                     });
+                }
+                
+                // Load designs when category changes
+                $('#pitchprint_category_id').on('change', function() {
+                    var categoryId = $(this).val();
+                    console.log('Category changed to:', categoryId);
+                    loadDesigns(categoryId);
+                });
+                
+                // Log when design changes
+                $('#pitchprint_design_id').on('change', function() {
+                    console.log('Design changed to:', $(this).val());
                 });
                 
                 // Initial setup
@@ -316,19 +340,32 @@ class PitchPrint_Product {
      * Save product data
      */
     public function save_product_data($post_id) {
+        // Debug logging
+        pitchprint_log('Saving product data for post ID: ' . $post_id);
+        
         // Save button type
         if (isset($_POST['_pitchprint_button_type'])) {
-            update_post_meta($post_id, '_pitchprint_button_type', sanitize_text_field($_POST['_pitchprint_button_type']));
+            $button_type = sanitize_text_field($_POST['_pitchprint_button_type']);
+            update_post_meta($post_id, '_pitchprint_button_type', $button_type);
+            pitchprint_log('Saved button type: ' . $button_type);
         }
         
         // Save category ID
         if (isset($_POST['_pitchprint_category_id'])) {
-            update_post_meta($post_id, '_pitchprint_category_id', sanitize_text_field($_POST['_pitchprint_category_id']));
+            $category_id = sanitize_text_field($_POST['_pitchprint_category_id']);
+            update_post_meta($post_id, '_pitchprint_category_id', $category_id);
+            pitchprint_log('Saved category ID: ' . $category_id);
         }
         
         // Save design ID
         if (isset($_POST['_pitchprint_design_id'])) {
-            update_post_meta($post_id, '_pitchprint_design_id', sanitize_text_field($_POST['_pitchprint_design_id']));
+            $design_id = sanitize_text_field($_POST['_pitchprint_design_id']);
+            update_post_meta($post_id, '_pitchprint_design_id', $design_id);
+            pitchprint_log('Saved design ID: ' . $design_id);
+            
+            // Verify the save
+            $saved_design = get_post_meta($post_id, '_pitchprint_design_id', true);
+            pitchprint_log('Verified saved design ID: ' . $saved_design);
         }
     }
     
