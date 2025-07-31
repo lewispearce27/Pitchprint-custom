@@ -60,8 +60,23 @@ class PitchPrint_Frontend {
         global $product;
         
         $button_type = get_post_meta($product->get_id(), '_pitchprint_button_type', true);
-        $category_id = get_post_meta($product->get_id(), '_pitchprint_category_id', true);
-        $design_id = get_post_meta($product->get_id(), '_pitchprint_design_id', true);
+        $design_value = get_post_meta($product->get_id(), '_pitchprint_design_value', true);
+        $display_mode = get_post_meta($product->get_id(), '_pitchprint_display_mode', true);
+        $enable_upload = get_post_meta($product->get_id(), '_pitchprint_enable_upload', true);
+        
+        // Parse design value
+        $category_id = '';
+        $design_id = '';
+        
+        if (strpos($design_value, 'CAT:') === 0) {
+            $category_id = substr($design_value, 4);
+        } elseif (strpos($design_value, 'DES:') === 0) {
+            $design_id = substr($design_value, 4);
+        } else {
+            // Check legacy format
+            $category_id = get_post_meta($product->get_id(), '_pitchprint_category_id', true);
+            $design_id = get_post_meta($product->get_id(), '_pitchprint_design_id', true);
+        }
         
         if ($button_type === 'none' || empty($button_type)) {
             return;
@@ -75,7 +90,8 @@ class PitchPrint_Frontend {
                         class="button alt pitchprint-button design-online-btn"
                         data-design-id="<?php echo esc_attr($design_id); ?>"
                         data-category-id="<?php echo esc_attr($category_id); ?>"
-                        <?php echo empty($design_id) ? 'disabled' : ''; ?>>
+                        data-display-mode="<?php echo esc_attr($display_mode); ?>"
+                        <?php echo (empty($design_id) && empty($category_id)) ? 'disabled' : ''; ?>>
                     <span class="dashicons dashicons-edit"></span>
                     <?php _e('Design Online', 'pitchprint-integration'); ?>
                 </button>
@@ -154,6 +170,8 @@ class PitchPrint_Frontend {
                 buttonType: '<?php echo esc_js($button_type); ?>',
                 designId: '<?php echo esc_js($design_id); ?>',
                 categoryId: '<?php echo esc_js($category_id); ?>',
+                displayMode: '<?php echo esc_js($display_mode); ?>',
+                enableUpload: '<?php echo esc_js($enable_upload); ?>',
                 apiKey: '<?php echo esc_js(get_option('pitchprint_api_key')); ?>',
                 ajaxUrl: '<?php echo admin_url('admin-ajax.php'); ?>',
                 uploadNonce: '<?php echo wp_create_nonce('pitchprint_upload_nonce'); ?>'
