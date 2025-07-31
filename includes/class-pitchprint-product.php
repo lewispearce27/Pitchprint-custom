@@ -82,6 +82,9 @@ class PitchPrint_Product {
         if (empty($display_mode)) {
             $display_mode = 'Full Window';
         }
+        
+        // Debug
+        pitchprint_log('Product Panel - Design Value from DB: ' . $design_value);
         ?>
         
         <div id="pitchprint_product_data" class="panel woocommerce_options_panel">
@@ -115,11 +118,6 @@ class PitchPrint_Product {
                                 style="width: 50%;"
                                 data-saved-value="<?php echo esc_attr($design_value); ?>">
                             <option value=""><?php _e('Loading...', 'pitchprint-integration'); ?></option>
-                            <?php if ($design_value) : ?>
-                                <option value="<?php echo esc_attr($design_value); ?>" selected>
-                                    <?php echo esc_html($design_value); ?>
-                                </option>
-                            <?php endif; ?>
                         </select>
                         <span class="description">
                             <?php _e('Select a category or specific design', 'pitchprint-integration'); ?>
@@ -181,7 +179,7 @@ class PitchPrint_Product {
         <script type="text/javascript">
             jQuery(document).ready(function($) {
                 var savedValue = $('#pitchprint_design').data('saved-value');
-                console.log('Saved design value:', savedValue);
+                console.log('Saved design value from data attribute:', savedValue);
                 
                 // Show/hide design section based on button type
                 function toggleDesignSection() {
@@ -212,8 +210,10 @@ class PitchPrint_Product {
                                 $.each(response.data, function(index, item) {
                                     if (item.type === 'category') {
                                         // Category option
+                                        var catValue = 'CAT:' + item.id;
+                                        var catSelected = (savedValue === catValue) ? ' selected' : '';
                                         $select.append(
-                                            '<option value="CAT:' + item.id + '">' + 
+                                            '<option value="' + catValue + '"' + catSelected + '>' + 
                                             item.title + 
                                             '</option>'
                                         );
@@ -221,9 +221,10 @@ class PitchPrint_Product {
                                         // Add designs under this category
                                         if (item.designs && item.designs.length > 0) {
                                             $.each(item.designs, function(idx, design) {
-                                                var selected = (savedValue === 'DES:' + design.id) ? ' selected' : '';
+                                                var desValue = 'DES:' + design.id;
+                                                var desSelected = (savedValue === desValue) ? ' selected' : '';
                                                 $select.append(
-                                                    '<option value="DES:' + design.id + '"' + selected + '>' + 
+                                                    '<option value="' + desValue + '"' + desSelected + '>' + 
                                                     '&nbsp;&nbsp;&nbsp;&nbsp;» ' + design.title + 
                                                     '</option>'
                                                 );
@@ -232,10 +233,8 @@ class PitchPrint_Product {
                                     }
                                 });
                                 
-                                // Set saved value if exists
-                                if (savedValue) {
-                                    $select.val(savedValue);
-                                }
+                                // Log the final value
+                                console.log('After loading, select value is:', $select.val());
                             }
                         },
                         error: function() {
@@ -243,6 +242,11 @@ class PitchPrint_Product {
                         }
                     });
                 }
+                
+                // Debug: log when select changes
+                $('#pitchprint_design').on('change', function() {
+                    console.log('Design selection changed to:', $(this).val());
+                });
                 
                 // Initial load
                 toggleDesignSection();
@@ -322,6 +326,8 @@ class PitchPrint_Product {
         if (isset($_POST['_pitchprint_design_value'])) {
             $design_value = sanitize_text_field($_POST['_pitchprint_design_value']);
             update_post_meta($post_id, '_pitchprint_design_value', $design_value);
+            
+            pitchprint_log('Saving design value: ' . $design_value);
             
             // Parse the value to store category and design separately for frontend use
             if (strpos($design_value, 'CAT:') === 0) {
